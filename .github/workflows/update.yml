@@ -1,0 +1,68 @@
+name: Update
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  autoupdate:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/terrapkg/builder:f39
+      options: --cap-add=SYS_ADMIN --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          repository: raboneko/packages
+          ref: "f39"
+
+      - name: Install SSH signing key
+        run: |
+          mkdir -p ${{ runner.temp }}
+          echo "${{ secrets.SSH_SIGNING_KEY }}" > ${{ runner.temp }}/signing_key
+          chmod 0700 ${{ runner.temp }}/signing_key
+
+      - name: Install SSH authentication key
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: |
+          mkdir -p /home/runner/.ssh
+          echo "${{ secrets.SSH_AUTHENTICATION_KEY }}" > /home/runner/.ssh/github_actions
+          chmod 600 /home/runner/.ssh/github_actions
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add /home/runner/.ssh/github_actions
+
+      - name: Setup some Git config
+        run: |
+          git config --global --add safe.directory "*"
+          git config user.name "Raboneko"
+          git config user.email "raboneko@fyralabs.com"
+          git config gpg.format "ssh"
+          git config user.signingkey "${{ runner.temp }}/signing_key"
+
+      - name: Update fork from upstream
+        run: gh repo sync -b f39 --force
+        env:
+          GH_TOKEN: ${{ secrets.TERRA_GH_TOKEN }}
+
+      - name: Run Update
+        run: anda update -vv
+        env:
+          GITHUB_TOKEN: ${{ secrets.AUTOUPDATE_GH_TOKEN }}
+          RUST_BACKTRACE: full
+
+      - name: Save
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          GH_TOKEN: ${{ secrets.TERRA_GH_TOKEN }}
+        run: |
+          if [[ `git status --porcelain` ]]; then
+            msg="bump: $(git status | grep modified | sed -r 's@.+/([^/]+)/[^/]+\n?@\1 @g' | tr -d '\n')"
+            git commit -S -a -m "$msg"
+            git push
+
+            PR_URL=$(gh pr create --title "$msg" --body "Automatic update from Raboneko!" --repo terrapkg/packages --base f39 --label "update" --label "raboneko")
+            gh pr merge --auto --squash --repo terrapkg/packages $PR_URL
+          fi
