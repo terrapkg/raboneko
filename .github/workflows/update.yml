@@ -43,7 +43,9 @@ jobs:
           git config user.signingkey "${{ runner.temp }}/signing_key"
 
       - name: Update fork from upstream
-        run: gh repo sync -b f39 --force
+        run: |
+          gh repo sync -b f39 --force
+          gh repo view
         env:
           GH_TOKEN: ${{ secrets.TERRA_GH_TOKEN }}
 
