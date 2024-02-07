@@ -47,6 +47,7 @@ jobs:
         run: |
           gh repo sync -b f39 --source terrapkg/packages
         env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           GH_TOKEN: ${{ secrets.TERRA_GH_TOKEN }}
 
       - name: Run Update
