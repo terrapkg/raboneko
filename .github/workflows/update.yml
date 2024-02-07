@@ -17,6 +17,7 @@ jobs:
           fetch-depth: 0
           repository: raboneko/packages
           ref: "f39"
+          ssh-key: ${{ secrets.SSH_AUTHENTICATION_KEY }}
 
       - name: Install SSH signing key
         run: |
@@ -24,15 +25,15 @@ jobs:
           echo "${{ secrets.SSH_SIGNING_KEY }}" > ${{ runner.temp }}/signing_key
           chmod 0700 ${{ runner.temp }}/signing_key
 
-      - name: Install SSH authentication key
-        env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
-        run: |
-          mkdir -p /home/runner/.ssh
-          echo "${{ secrets.SSH_AUTHENTICATION_KEY }}" > /home/runner/.ssh/github_actions
-          chmod 600 /home/runner/.ssh/github_actions
-          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
-          ssh-add /home/runner/.ssh/github_actions
+      # - name: Install SSH authentication key
+      #   env:
+      #     SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      #   run: |
+      #     mkdir -p /home/runner/.ssh
+      #     echo "${{ secrets.SSH_AUTHENTICATION_KEY }}" > /home/runner/.ssh/github_actions
+      #     chmod 600 /home/runner/.ssh/github_actions
+      #     ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+      #     ssh-add /home/runner/.ssh/github_actions
 
       - name: Setup some Git config
         run: |
@@ -48,7 +49,7 @@ jobs:
           gh repo sync -b f39 --source terrapkg/packages
           git push
         env:
-          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+          # SSH_AUTH_SOCK: /tmp/ssh_agent.sock
           GH_TOKEN: ${{ secrets.TERRA_GH_TOKEN }}
 
       - name: Run Update
